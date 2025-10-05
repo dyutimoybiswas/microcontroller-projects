@@ -2,7 +2,7 @@
 #define UART_LOGGING_H
 
 #define BAUD_RATE 				9600
-#define NULL_CHAR					'\0'
+#define NULL_CHAR				'\0'
 
 void uart_setup(void);
 void uart_init(void);

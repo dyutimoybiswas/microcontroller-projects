@@ -26,16 +26,16 @@ void spi_setup(void)
 	GPIOD->DIR 		&= ~PD1;
 	
 	/* Configure SPI. */
-	SSI3->CR1 &= ~SSE;
-	SSI3->CR1 = 0x04;
+	SSI3->CR1 	&= ~SSE;
+	SSI3->CR1 	= 0x04;
 	SSI3->CC	= 0x05;
 	SSI3->IM	|= RINT;
 	
-	/* bit rate = SSI_clk / (CPSDVSR * (1 + SCR)), where CPDVSR is configured in SSICPSR and SCR in SSICR0. */
+	/* SSI_Clk = SysClk / (CPSDVSR * (1 + SCR)), where CPDVSR is configured in SSICPSR and SCR in SSICR0. */
 	/* 1Mbps bit rate @ 1 MHz, 8 bits and SPI SPO = SPH = 1. CPSDVSR = 16 and SCR = 0. */
 	SSI3->CPSR	= 0x10;
-	SSI3->CR0		= 0x0C7;
-	SSI3->CR1		|= SSE;
+	SSI3->CR0	= 0x0C7;
+	SSI3->CR1	|= SSE;
 }
 
 void spi_write(void)
