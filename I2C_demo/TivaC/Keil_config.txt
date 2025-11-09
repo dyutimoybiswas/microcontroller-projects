@@ -1,0 +1,6 @@
+Project config information:
+
+1. Manage runtime environment: Select CMSIS:Core
+2. Options for Target <...>: 
+	a. Choose Stellaris ICDI under Use in Debug tab.
+	b. C/C++: choose C11 (language C), MISRA compatible (Warnings), add inc folder of project and SW_kit in Include Paths
