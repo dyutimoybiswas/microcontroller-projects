@@ -7,6 +7,7 @@ static uint8_t readingIndex = 0;
 static uint8_t readingCount = 0;
 static QueueHandle_t xTempQueue;
 static TickType_t xLastWakeTime;
+static TaskHandle_t xLedTaskHandle;
 
 static void uart_print(const char *str)
 {
@@ -103,26 +104,47 @@ static void vTempProcessorTask(void *pvParameters)
                 uart_print(buffer);
             }
 
-            /* Blink red LED */
-            if (eCurrentState == TEMP_STATE_WARNING)
-            {
-                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, RED_LED);
-                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
-                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
-                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
-            }
-            else
-            {
-                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
-            }
-
             /* Update previous temperature and state */
             xPrevAvgTemperatureC = xAvgTemperatureC;
             ePrevState = eCurrentState;
+
+            /* Notify LED task */
+            if (eCurrentState == TEMP_STATE_WARNING)
+            {
+                xTaskNotify(xLedTaskHandle, 1, eSetValueWithOverwrite);
+            }
+            else
+            {
+                xTaskNotify(xLedTaskHandle, 0, eSetValueWithOverwrite);
+            }
         }
     }
 }
-    
+
+static void vLedActionTask(void *pvParameters)
+{
+    uint32_t ulNotificationValue = 0;
+
+    while (true)
+    {
+        /* Block until notification arrives */
+        xTaskNotifyWait(0, 0, &ulNotificationValue, portMAX_DELAY);
+
+        while (ulNotificationValue)
+        {
+            GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, RED_LED);
+            vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
+            GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
+            vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
+
+            /* Non-blocking check for state change */
+            xTaskNotifyWait(0, 0, &ulNotificationValue, 0);
+        }
+
+        /* Turn off LED for normal state */
+        GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
+    }
+}
 
 int main(void)
 {
@@ -141,12 +163,14 @@ int main(void)
     /* Create tasks - need larger stack for snprintf */
     xTaskCreate(vTempReaderTask, "Temperature Reader", 256, NULL, 1, NULL);
     xTaskCreate(vTempProcessorTask, "Temperature Processor", 256, NULL, 1, NULL);
+    xTaskCreate(vLedActionTask, "LED Action", configMINIMAL_STACK_SIZE, NULL, 2, &xLedTaskHandle);
 
     /* Start the scheduler */
     vTaskStartScheduler();
     
     while (true)
     {
+        /* Should never reach here */
     }
 }
 

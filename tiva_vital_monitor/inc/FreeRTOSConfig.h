@@ -24,6 +24,7 @@
 #define configCHECK_FOR_STACK_OVERFLOW      0
 #define configUSE_QUEUES                    1
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
+#define configUSE_TASK_NOTIFICATIONS        1
 
 /* APIs used */
 #define INCLUDE_vTaskDelay              1
