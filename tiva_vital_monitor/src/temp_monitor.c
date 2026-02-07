@@ -2,7 +2,9 @@
 #include "task.h"
 #include <stdio.h>
 
-static bool xIsFirstReading = true;
+static double temperatureReadings[AVG_WINDOW_SIZE];
+static uint8_t readingIndex = 0;
+static uint8_t readingCount = 0;
 static QueueHandle_t xTempQueue;
 static TickType_t xLastWakeTime;
 
@@ -12,6 +14,17 @@ static void uart_print(const char *str)
     {
         UARTCharPut(UART0_BASE, *str++);
     }
+}
+
+/* Calculate the moving average temperature */
+static double calculateAverageTemperature()
+{
+    double sum = 0.0;
+    for (uint8_t i = 0; i < readingCount; i++)
+    {
+        sum += temperatureReadings[i];
+    }
+    return readingCount > 0 ? sum / readingCount : 0.0;
 }
 
 static void vTempReaderTask(void *pvParameters)
@@ -47,44 +60,64 @@ static void vTempReaderTask(void *pvParameters)
 
 static void vTempProcessorTask(void *pvParameters)
 {
-    double xPrevTemperatureC;
-    double xTemperatureC;
+    bool xIsFirstComparison = true;
+    double xPrevAvgTemperatureC = 0.0;
+    double xAvgTemperatureC = 0.0;
+    double xRawTemperatureC;
     char buffer[50];
     TempState_t ePrevState = TEMP_STATE_NORMAL;
     TempState_t eCurrentState;
 
     while (true)
     {
-        if (xQueueReceive(xTempQueue, &xTemperatureC, portMAX_DELAY) == pdPASS)
+        if (xQueueReceive(xTempQueue, &xRawTemperatureC, portMAX_DELAY) == pdPASS)
         {
-            /* Log base temperature */
-            if (xIsFirstReading)
+            /* Store the latest reading in the circular buffer */
+            temperatureReadings[readingIndex] = xRawTemperatureC;
+            readingIndex = (readingIndex + 1) % AVG_WINDOW_SIZE;
+            if (readingCount < AVG_WINDOW_SIZE)
             {
-                snprintf(buffer, sizeof(buffer), "Base Temperature: %.2f °C\r\n", xTemperatureC);
+                readingCount++;
+            }
+
+            /* Calculate average temperature */
+            xAvgTemperatureC = calculateAverageTemperature();
+
+            /* Skip first comparison to establish baseline */
+            if (xIsFirstComparison)
+            {
+                xPrevAvgTemperatureC = xAvgTemperatureC;
+                xIsFirstComparison = false;
+                continue;
+            }
+
+            double tempChange = xAvgTemperatureC - xPrevAvgTemperatureC;
+            tempChange = tempChange < 0 ? -tempChange : tempChange;  /* Absolute value */
+            eCurrentState = tempChange >= TEMP_THRESHOLD_C ? TEMP_STATE_WARNING : TEMP_STATE_NORMAL;
+            
+            /* Log temperature change if state has changed */
+            if (eCurrentState != ePrevState)
+            {
+                snprintf(buffer, sizeof(buffer), "Temperature delta: %.2f °C → %s\r\n", tempChange,
+                         eCurrentState == TEMP_STATE_WARNING ? "WARNING" : "NORMAL");
                 uart_print(buffer);
-                xIsFirstReading = false;
-                eCurrentState = TEMP_STATE_NORMAL;
+            }
+
+            /* Blink red LED */
+            if (eCurrentState == TEMP_STATE_WARNING)
+            {
+                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, RED_LED);
+                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
+                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
+                vTaskDelay(pdMS_TO_TICKS(LED_BLINK_DURATION_MS));
             }
             else
             {
-                double tempChange = xTemperatureC - xPrevTemperatureC;
-                tempChange = tempChange < 0 ? -tempChange : tempChange;  /* Absolute value */
-                eCurrentState = tempChange >= TEMP_THRESHOLD_C ? TEMP_STATE_WARNING : TEMP_STATE_NORMAL;
-                
-                /* Log temperature change if state has changed */
-                if (eCurrentState != ePrevState)
-                {
-                    snprintf(buffer, sizeof(buffer), "Temperature delta: %.2f °C → %s\r\n", tempChange,
-                             eCurrentState == TEMP_STATE_WARNING ? "WARNING" : "NORMAL");
-                    uart_print(buffer);
-
-                    /* Toggle red LED */
-                    GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, eCurrentState == TEMP_STATE_WARNING ? RED_LED : 0);
-                }
+                GPIOPinWrite(GPIO_PORTF_AHB_BASE, RED_LED, 0);
             }
 
             /* Update previous temperature and state */
-            xPrevTemperatureC = xTemperatureC;
+            xPrevAvgTemperatureC = xAvgTemperatureC;
             ePrevState = eCurrentState;
         }
     }

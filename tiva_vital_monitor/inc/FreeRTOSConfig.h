@@ -26,7 +26,7 @@
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
 
 /* APIs used */
-#define INCLUDE_vTaskDelay              0
+#define INCLUDE_vTaskDelay              1
 #define INCLUDE_vTaskSuspend            1   /* Required for portMAX_DELAY */
 #define INCLUDE_vTaskPrioritySet        0
 #define INCLUDE_uxTaskPriorityGet       0

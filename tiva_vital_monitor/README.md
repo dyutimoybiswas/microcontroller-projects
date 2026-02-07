@@ -1,9 +1,9 @@
 # Tiva Vital Monitor
 
 ## Description
-Simulate real time monitor of patient vital - temperature using on-board temperature sensor present in [EK-TM4C123GXL](https://www.ti.com/tool/EK-TM4C123GXL) microcontroller. Sample temperature readings every 500 ms. On temperature change:
-- Log **normal**, or **warning** using UART by comparing temperature delta against a preconfigured threshold value
-- Red LED turns on if reading is classified as **warning**, else stays off for **normal** range
+Simulate real time monitor of patient vital - temperature using on-board temperature sensor present in [EK-TM4C123GXL](https://www.ti.com/tool/EK-TM4C123GXL) microcontroller. Sample temperature readings every 500 ms and compute a moving average (up to 5 samples). On temperature change:
+- Log **normal**, or **warning** using UART by comparing moving average delta against a preconfigured threshold value
+- Red LED blinks if reading is classified as **warning**, else stays off for **normal** range
 - Above operations happen only on state change from **warning** to **normal** or vice-versa
 
 ## Prerequisites
@@ -56,16 +56,13 @@ Press `Ctrl+A` then `K` to exit screen.
 
 Expected output:
 ```
-Base Temperature: 24.68 °C
-Temperature delta: 0.06 °C → NORMAL
-Temperature delta: 0.00 °C → NORMAL
 Temperature delta: 0.06 °C → NORMAL
 Temperature delta: 0.42 °C → WARNING
 Temperature delta: 0.12 °C → NORMAL
 ...
 ```
 
-The red LED turns on when delta exceeds threshold (WARNING), otherwise stays off (NORMAL).
+The red LED blinks when delta exceeds threshold (WARNING), otherwise stays off (NORMAL).
 
 ## Project Structure
 ```
@@ -89,6 +86,7 @@ tiva_vital_monitor/
 Edit `inc/temp_monitor.h` for application settings:
 - `TEMP_DELAY_MS` — Sampling interval (default: 500ms)
 - `TEMP_THRESHOLD_C` — Warning threshold for temperature change (default: 0.3°C)
+- `AVG_WINDOW_SIZE` — Moving average window size (default: 5)
 
 Edit `inc/setup.h` for hardware settings:
 - `BAUD_RATE` — UART baud rate (default: 115200)
