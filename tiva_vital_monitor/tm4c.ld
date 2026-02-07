@@ -18,7 +18,22 @@ SECTIONS
         _etext = .;
     } > FLASH
 
-    .data : AT(ADDR(.text) + SIZEOF(.text))
+    /* ARM exception unwinding sections */
+    .ARM.extab :
+    {
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+    } > FLASH
+
+    .ARM.exidx :
+    {
+        __exidx_start = .;
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = .;
+    } > FLASH
+
+    _etext_all = .;
+
+    .data : AT(_etext_all)
     {
         _data = .;
         _ldata = LOADADDR (.data);
@@ -34,4 +49,8 @@ SECTIONS
         *(COMMON)
         _ebss = .;
     } > SRAM
+
+    /* Heap starts after BSS - needed by sbrk */
+    end = .;
+    _end = .;
 }

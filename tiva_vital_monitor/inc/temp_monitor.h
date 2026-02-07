@@ -1,18 +1,20 @@
 #ifndef TEMP_MONITOR_H
 #define TEMP_MONITOR_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
+#include "setup.h"
 #include "FreeRTOS.h"
-#include "semphr.h"
+#include "queue.h"
 
-#define RED_LED            GPIO_PIN_1
-#define BLUE_LED           GPIO_PIN_2
-#define GREEN_LED          GPIO_PIN_3
+/* Application configuration */
+#define TEMP_DELAY_MS       500
+#define TEMP_THRESHOLD_C    0.3
+#define QUEUE_LENGTH        5
+#define QUEUE_WAIT          100
 
-void led_setup();
+typedef enum TempState_t
+{
+    TEMP_STATE_NORMAL,
+    TEMP_STATE_WARNING
+} TempState_t;
 
-#endif  // TEMP_MONITOR_H
+#endif  /* TEMP_MONITOR_H */
