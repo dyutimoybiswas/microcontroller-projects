@@ -58,3 +58,34 @@ void uart_setup(void)
     /* Enable UART0 */
     UARTEnable(UART0_BASE);
 }
+
+void watchdog_setup(void)
+{
+    /* Enable the watchdog 0 peripheral */
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_WDOG0))
+    {
+        /* Wait for peripheral to be ready */
+    }
+
+    /* Unlock the watchdog if it is locked */
+    if (WatchdogLockState(WATCHDOG0_BASE))
+    {
+        WatchdogUnlock(WATCHDOG0_BASE);
+    }
+
+    /* Disable reset to prevent watchdog firing during startup */
+    WatchdogResetDisable(WATCHDOG0_BASE);
+}
+
+void watchdog_start(void)
+{
+    /* Set timeout to ~1 second */
+    WatchdogReloadSet(WATCHDOG0_BASE, SYSTEM_CLOCK_HZ);
+
+    /* Enable reset on timeout */
+    WatchdogResetEnable(WATCHDOG0_BASE);
+
+    /* Enable the watchdog */
+    WatchdogEnable(WATCHDOG0_BASE);
+}

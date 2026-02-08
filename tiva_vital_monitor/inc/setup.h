@@ -9,6 +9,7 @@
 #include "driverlib/pin_map.h"
 #include "driverlib/adc.h"
 #include "driverlib/uart.h"
+#include "driverlib/watchdog.h"
 
 /* GPIO Pin definitions */
 #define RED_LED             GPIO_PIN_1
@@ -24,5 +25,7 @@
 void led_setup(void);
 void adc_setup(void);
 void uart_setup(void);
+void watchdog_setup(void);
+void watchdog_start(void);
 
 #endif  /* SETUP_H */

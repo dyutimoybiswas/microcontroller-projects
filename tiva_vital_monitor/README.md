@@ -5,6 +5,9 @@ Simulate real time monitor of patient vital - temperature using on-board tempera
 - Log **normal**, or **warning** using UART by comparing moving average delta against a preconfigured threshold value
 - Red LED blinks continuously while in **warning** state, stays off for **normal** range
 - UART logging happens only on state change from **warning** to **normal** or vice-versa
+- Green LED displays heartbeat pattern (double-blink) to indicate system health
+- Watchdog timer (~1 second) resets the system if temperature processor task stops responding
+- Reset cause is logged on startup (POWER-ON, WATCHDOG, EXTERNAL, SOFTWARE, etc.)
 
 ## Prerequisites
 
@@ -56,13 +59,13 @@ Press `Ctrl+A` then `K` to exit screen.
 
 Expected output:
 ```
-Temperature delta: 0.06 °C → NORMAL
+Reset cause: SOFTWARE
 Temperature delta: 0.42 °C → WARNING
 Temperature delta: 0.12 °C → NORMAL
 ...
 ```
 
-The red LED blinks continuously when delta exceeds threshold (WARNING), and stops when returning to NORMAL.
+The red LED blinks continuously when delta exceeds threshold (WARNING), and stops when returning to NORMAL. The green LED displays a heartbeat pattern (double-blink followed by pause) to indicate the system is running normally.
 
 ## Project Structure
 ```
@@ -87,8 +90,19 @@ Edit `inc/temp_monitor.h` for application settings:
 - `TEMP_DELAY_MS` — Sampling interval (default: 500ms)
 - `TEMP_THRESHOLD_C` — Warning threshold for temperature change (default: 0.3°C)
 - `AVG_WINDOW_SIZE` — Moving average window size (default: 5)
-- `LED_BLINK_DURATION_MS` — LED on/off duration during warning (default: 400ms)
+- `LED_BLINK_DURATION_MS` — Red LED on/off duration during warning (default: 400ms)
+- `HEARTBEAT_INTERVAL_MS` — Green LED heartbeat pulse duration (default: 160ms)
 
 Edit `inc/setup.h` for hardware settings:
 - `BAUD_RATE` — UART baud rate (default: 115200)
 - `SYSTEM_CLOCK_HZ` — System clock frequency (default: 16MHz)
+
+## Testing Watchdog
+
+To test the watchdog reset functionality, comment out the health flag in `src/temp_monitor.c`:
+```c
+/* Update processor health status */
+// xIsProcessorHealthy = true;
+```
+
+This prevents the watchdog from being kicked, causing a reset after ~1 second. The serial monitor will display `Reset cause: WATCHDOG` on restart.

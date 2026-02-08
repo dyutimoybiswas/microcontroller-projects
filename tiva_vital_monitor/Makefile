@@ -24,6 +24,7 @@ LDFLAGS := -T tm4c.ld -Wl,-Map=$(BUILD)/$(PROJECT_NAME).map -Wl,--gc-sections \
 
 # Source files
 SRCS := $(wildcard src/*.c)
+HEADERS := $(wildcard inc/*.h)
 FREERTOS_SRCS := $(FREERTOS)/tasks.c \
                  $(FREERTOS)/queue.c \
                  $(FREERTOS)/list.c \
@@ -50,8 +51,8 @@ $(FREERTOS):
 	@echo "Downloading FreeRTOS Kernel $(FREERTOS_VERSION)..."
 	curl -L https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/refs/tags/V$(FREERTOS_VERSION).tar.gz | tar -xz
 
-# Compile project sources
-$(BUILD)/%.o: src/%.c | $(BUILD)
+# Compile project sources (recompile if any header changes)
+$(BUILD)/%.o: src/%.c $(HEADERS) | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compile FreeRTOS sources

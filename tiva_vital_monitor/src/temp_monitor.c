@@ -6,8 +6,8 @@ static double temperatureReadings[AVG_WINDOW_SIZE];
 static uint8_t readingIndex = 0;
 static uint8_t readingCount = 0;
 static QueueHandle_t xTempQueue;
-static TickType_t xLastWakeTime;
 static TaskHandle_t xLedTaskHandle;
+static bool xIsProcessorHealthy = false;
 
 static void uart_print(const char *str)
 {
@@ -18,7 +18,7 @@ static void uart_print(const char *str)
 }
 
 /* Calculate the moving average temperature */
-static double calculateAverageTemperature()
+static double calculateAverageTemperature(void)
 {
     double sum = 0.0;
     for (uint8_t i = 0; i < readingCount; i++)
@@ -33,7 +33,7 @@ static void vTempReaderTask(void *pvParameters)
     uint32_t ulAdcValue;
 
     /* Initialize the last wake time */
-    xLastWakeTime = xTaskGetTickCount();
+    TickType_t xLastWakeTime = xTaskGetTickCount();
     
     while (true)
     {
@@ -108,6 +108,9 @@ static void vTempProcessorTask(void *pvParameters)
             xPrevAvgTemperatureC = xAvgTemperatureC;
             ePrevState = eCurrentState;
 
+            /* Update processor health status */
+            xIsProcessorHealthy = true;
+
             /* Notify LED task */
             if (eCurrentState == TEMP_STATE_WARNING)
             {
@@ -146,23 +149,106 @@ static void vLedActionTask(void *pvParameters)
     }
 }
 
+static void vHeartbeatTask(void *pvParameters)
+{
+    while (true)
+    {
+        /* Kick watchdog if processor is healthy (working) */
+        if (xIsProcessorHealthy)
+        {
+            xIsProcessorHealthy = false;  /* Reset health status for next cycle */
+            WatchdogReloadSet(WATCHDOG0_BASE, SYSTEM_CLOCK_HZ);
+        }
+
+        /* Heartbeat pattern */
+        GPIOPinWrite(GPIO_PORTF_AHB_BASE, GREEN_LED, GREEN_LED);
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+        GPIOPinWrite(GPIO_PORTF_AHB_BASE, GREEN_LED, 0);
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+        GPIOPinWrite(GPIO_PORTF_AHB_BASE, GREEN_LED, GREEN_LED);
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+        GPIOPinWrite(GPIO_PORTF_AHB_BASE, GREEN_LED, 0);
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
+
+        /* Pause before next heartbeat */
+        vTaskDelay(pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS * 3 / 2));
+    }
+}
+
+static void logResetCause(void)
+{
+    uint32_t cause = SysCtlResetCauseGet();
+    SysCtlResetCauseClear(cause);
+
+    uart_print("Reset cause: ");
+
+    /* Printed on power cycle */
+    if (cause & SYSCTL_CAUSE_POR)
+    {
+        uart_print("POWER-ON");
+    }
+
+    /* Printed on watchdog reset (e.g. updating HEARTBEAT_INTERVAL_MS) */
+    if (cause & SYSCTL_CAUSE_WDOG0)
+    {
+        uart_print("WATCHDOG");
+    }
+
+    if (cause & SYSCTL_CAUSE_BOR)
+    {
+        uart_print("BROWN-OUT");
+    }
+
+    /* Printed on external reset (e.g. pressing reset button) */
+    if (cause & SYSCTL_CAUSE_EXT)
+    {
+        uart_print("EXTERNAL");
+    }
+
+    /* Printed on software reset (e.g. flashing binary) */
+    if (cause & SYSCTL_CAUSE_SW)
+    {
+        uart_print("SOFTWARE");
+    }
+
+    if (cause & SYSCTL_CAUSE_HIB)
+    {
+        uart_print("HIBERNATE");
+    }
+
+    uart_print("\r\n");
+}
+
 int main(void)
 {
     /* Set system clock to 16 MHz (internal oscillator) */
     SysCtlClockSet(SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+
+    /* Initialize peripherals */
+    watchdog_setup();
     led_setup();
     adc_setup();
     uart_setup();
 
-    /* Clear serial monitor */
+    /* Clear serial monitor and log reset cause */
     uart_print("\033[2J\033[H");
+
+    /* ~3s delay for serial monitor connection and ADC stabilization */
+    SysCtlDelay(SYSTEM_CLOCK_HZ);
+
+    /* Log the cause of last reset */
+    logResetCause();
+
+    /* Arm watchdog after startup delay */
+    watchdog_start();
 
     /* Create queue for temperature data */
     xTempQueue = xQueueCreate(QUEUE_LENGTH, sizeof(double));
 
     /* Create tasks - need larger stack for snprintf */
-    xTaskCreate(vTempReaderTask, "Temperature Reader", 256, NULL, 1, NULL);
-    xTaskCreate(vTempProcessorTask, "Temperature Processor", 256, NULL, 1, NULL);
+    xTaskCreate(vHeartbeatTask, "Heartbeat", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+    xTaskCreate(vTempReaderTask, "Temperature Reader", 256, NULL, 2, NULL);
+    xTaskCreate(vTempProcessorTask, "Temperature Processor", 256, NULL, 2, NULL);
     xTaskCreate(vLedActionTask, "LED Action", configMINIMAL_STACK_SIZE, NULL, 2, &xLedTaskHandle);
 
     /* Start the scheduler */
@@ -173,4 +259,3 @@ int main(void)
         /* Should never reach here */
     }
 }
-

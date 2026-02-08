@@ -12,6 +12,7 @@
 #define QUEUE_WAIT              100
 #define AVG_WINDOW_SIZE         5
 #define LED_BLINK_DURATION_MS   400
+#define HEARTBEAT_INTERVAL_MS   160
 
 typedef enum TempState_t
 {
