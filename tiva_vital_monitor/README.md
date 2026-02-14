@@ -8,6 +8,7 @@ Simulate real time monitor of patient vital - temperature using on-board tempera
 - Green LED displays heartbeat pattern (double-blink) to indicate system health
 - Watchdog timer (~1 second) resets the system if temperature processor task stops responding
 - Reset cause is logged on startup (POWER-ON, WATCHDOG, EXTERNAL, SOFTWARE, etc.)
+- ADC uses interrupt-driven conversion with FreeRTOS task notifications
 
 ## Prerequisites
 
@@ -75,7 +76,7 @@ tiva_vital_monitor/
 │   ├── setup.h             # Hardware configuration and setup declarations
 │   └── temp_monitor.h      # Application configuration
 ├── src/                    # Source files
-│   ├── setup.c             # Hardware initialization (LED, ADC, UART)
+│   ├── setup.c             # Hardware initialization (LED, ADC, UART, Watchdog)
 │   ├── temp_monitor.c      # Main application with FreeRTOS tasks
 │   └── startup_gcc.c       # Startup code
 ├── tivaware/               # TivaWare SDK (headers + prebuilt lib)

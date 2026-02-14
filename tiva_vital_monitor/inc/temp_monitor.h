@@ -1,7 +1,6 @@
 #ifndef TEMP_MONITOR_H
 #define TEMP_MONITOR_H
 
-#include "setup.h"
 #include "FreeRTOS.h"
 #include "queue.h"
 
