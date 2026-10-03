@@ -1,3 +1,6 @@
 # Generic
 .vscode/
 .DS_Store
+
+# copilot
+.github
